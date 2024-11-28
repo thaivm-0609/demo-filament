@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PostResource\Pages;
 use App\Filament\Resources\PostResource\RelationManagers;
 use App\Models\Post;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -23,16 +24,34 @@ class PostResource extends Resource
     {
         return $form
             ->schema([
-                //
+                Forms\Components\TextInput::make('title')
+                    ->required(),
+                Forms\Components\Select::make('status')
+                    ->options([
+                        '1' => 'Public',
+                        '2' => 'Draft',
+                        '3' => 'Pending',
+                    ])
+                    ->required(),
+                Forms\Components\MarkdownEditor::make('content')
+                    ->columnSpan('full')
+                    ->required(), //sử dụng cú pháp markdown để viết nội dung
+                Forms\Components\FileUpload::make('image')
+                    ->required(), //upload file ảnh
+                Forms\Components\Select::make('user_id')
+                    ->options(User::all()->pluck('email', 'id'))
+                    ->required(),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->columns([
+            ->columns([ //khai báo các cột trong bảng danh sách
                 Tables\Columns\TextColumn::make('id')->sortable(),
-                Tables\Columns\TextColumn::make('title')->label('Tiêu đề'),
+                Tables\Columns\TextInputColumn::make('title')->label('Tiêu đề')
+                    ->rules(['required', 'min:3', 'max:20'])
+                    ->searchable(),
                 Tables\Columns\SelectColumn::make('status')
                     ->options([
                         '1' => 'Public',
@@ -47,11 +66,22 @@ class PostResource extends Resource
                     ->words(10), //giới hạn 10 từ
                     //->limit(30), //giới hạn 30 ký tự
             ])
-            ->filters([
-                //
+            ->filters([ //khai báo những trường để thực hiện lọc
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        '1' => 'Public',
+                        '2' => 'Draft',
+                        '3' => 'Pending',
+                    ]),
+                Tables\Filters\SelectFilter::make('user')
+                    ->relationship('user', 'email')
+                    ->options(User::all()->pluck('email', 'id'))
+                    ->multiple()
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
